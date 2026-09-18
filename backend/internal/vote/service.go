@@ -70,8 +70,17 @@ func (s *Service) Cast(ctx context.Context, pollID primitive.ObjectID, req CastV
 	}
 
 	results, err := s.counters.Increment(ctx, pollID.Hex(), req.OptionID)
-	if err != nil {
-		return nil, err
+	if err != nil || len(results) == 0 {
+		if counts, mongoErr := s.repo.CountByOption(ctx, pollID); mongoErr == nil {
+			results = counts
+			optionIDs := make([]string, len(p.Options))
+			for i, o := range p.Options {
+				optionIDs[i] = o.ID
+			}
+			_ = s.counters.Rebuild(ctx, pollID.Hex(), counts, optionIDs)
+		} else if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, opt := range p.Options {
@@ -80,9 +89,7 @@ func (s *Service) Cast(ctx context.Context, pollID primitive.ObjectID, req CastV
 		}
 	}
 
-	if err := s.counters.Publish(ctx, pollID.Hex(), results); err != nil {
-		return nil, err
-	}
+	_ = s.counters.Publish(ctx, pollID.Hex(), results)
 
 	var total int64
 	for _, v := range results {

@@ -98,26 +98,49 @@ func (s *Service) resultsFor(ctx context.Context, p *Poll) (map[string]int64, er
 	if err != nil {
 		return nil, err
 	}
-	if len(results) == 0 && len(p.Options) > 0 {
+
+	var total int64
+	for _, v := range results {
+		total += v
+	}
+
+	if (len(results) == 0 || total == 0) && len(p.Options) > 0 {
 		if s.voteCounter != nil {
 			if counts, err := s.voteCounter(ctx, p.ID); err == nil && len(counts) > 0 {
-				optionIDs := make([]string, len(p.Options))
-				for i, o := range p.Options {
-					optionIDs[i] = o.ID
+				var mongoTotal int64
+				for _, v := range counts {
+					mongoTotal += v
 				}
-				_ = s.counters.Rebuild(ctx, p.ID.Hex(), counts, optionIDs)
-				return counts, nil
+				if mongoTotal > 0 {
+					optionIDs := make([]string, len(p.Options))
+					for i, o := range p.Options {
+						optionIDs[i] = o.ID
+						if _, ok := counts[o.ID]; !ok {
+							counts[o.ID] = 0
+						}
+					}
+					_ = s.counters.Rebuild(ctx, p.ID.Hex(), counts, optionIDs)
+					return counts, nil
+				}
 			}
 		}
-		results = make(map[string]int64, len(p.Options))
-		for _, o := range p.Options {
+		if len(results) == 0 {
+			results = make(map[string]int64, len(p.Options))
+			for _, o := range p.Options {
+				results[o.ID] = 0
+			}
+			optionIDs := make([]string, len(p.Options))
+			for i, o := range p.Options {
+				optionIDs[i] = o.ID
+			}
+			_ = s.counters.InitCounters(ctx, p.ID.Hex(), optionIDs)
+		}
+	}
+
+	for _, o := range p.Options {
+		if _, ok := results[o.ID]; !ok {
 			results[o.ID] = 0
 		}
-		optionIDs := make([]string, len(p.Options))
-		for i, o := range p.Options {
-			optionIDs[i] = o.ID
-		}
-		_ = s.counters.InitCounters(ctx, p.ID.Hex(), optionIDs)
 	}
 	return results, nil
 }
