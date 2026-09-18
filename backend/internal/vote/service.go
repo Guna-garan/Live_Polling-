@@ -74,6 +74,12 @@ func (s *Service) Cast(ctx context.Context, pollID primitive.ObjectID, req CastV
 		return nil, err
 	}
 
+	for _, opt := range p.Options {
+		if _, ok := results[opt.ID]; !ok {
+			results[opt.ID] = 0
+		}
+	}
+
 	if err := s.counters.Publish(ctx, pollID.Hex(), results); err != nil {
 		return nil, err
 	}

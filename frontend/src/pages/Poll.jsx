@@ -39,9 +39,14 @@ export default function Poll() {
     setSelectedOptionId(null);
     pollApi
       .get(id)
-      .then(setPoll)
+      .then((data) => {
+        setPoll(data);
+        if (data && data.results) {
+          updateResults(data.results, data.totalVotes || 0);
+        }
+      })
       .catch((err) => setLoadError(err.message));
-  }, [id]);
+  }, [id, updateResults]);
 
   async function handleVote() {
     if (!selectedOptionId || voting) return;

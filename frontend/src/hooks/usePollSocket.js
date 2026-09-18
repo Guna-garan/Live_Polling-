@@ -30,6 +30,18 @@ export function usePollSocket(pollId) {
     if (!pollId) return;
     closedByUsRef.current = false;
 
+    async function resync() {
+      try {
+        const poll = await pollApi.get(pollId);
+        setResults(poll.results || {});
+        setTotalVotes(poll.totalVotes || 0);
+      } catch {
+        // best-effort
+      }
+    }
+
+    resync();
+
     function applyEvent(evt) {
       if (evt.type === "poll.results.snapshot") {
         setResults(evt.results || {});
