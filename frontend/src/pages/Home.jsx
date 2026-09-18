@@ -17,40 +17,73 @@ export default function Home() {
   }
 
   return (
-    <div className="landing">
+    <div className="landing-page">
       <section className="hero">
-        <h1>LIVEPOLL</h1>
-        <p className="hero-tagline">Create. Share. Vote. Watch it happen live.</p>
-        <p className="hero-sub">Real-time polling for real audiences.</p>
-        <div className="hero-actions">
-          <Link to={user ? "/create" : "/signup"} className="btn btn-primary btn-lg">
-            Create a Poll
-          </Link>
+        <div className="hero-copy">
+          <div className="hero-badge">
+            <span className="badge-pulse" />
+            <span>Realtime Polling Engine</span>
+          </div>
+          <h1>Create. Share. Vote.<br /><span className="gradient-text">Watch it happen live.</span></h1>
+          <p className="hero-sub">
+            Instant, zero-refresh audience polling powered by Go, Redis Pub/Sub, MongoDB, and WebSockets.
+          </p>
+          <div className="hero-actions">
+            <Link to={user ? "/create" : "/signup"} className="btn btn-primary btn-lg btn-glow">
+              Create a Poll
+            </Link>
+          </div>
+          <form className="join-form glass-card" onSubmit={handleJoin}>
+            <Input
+              placeholder="Paste poll link or ID to join live vote..."
+              value={joinId}
+              onChange={(e) => setJoinId(e.target.value)}
+            />
+            <Button type="submit" variant="secondary">
+              Join Poll
+            </Button>
+          </form>
         </div>
-        <form className="join-form" onSubmit={handleJoin}>
-          <Input
-            placeholder="Paste a poll link or ID to join"
-            value={joinId}
-            onChange={(e) => setJoinId(e.target.value)}
-          />
-          <Button type="submit" variant="secondary">
-            Join a Poll
-          </Button>
-        </form>
+
+        <div className="hero-visual glass-card">
+          <div className="visual-header">
+            <span className="visual-dot red" />
+            <span className="visual-dot yellow" />
+            <span className="visual-dot green" />
+            <span className="visual-title">Live Results Stream</span>
+          </div>
+          <div className="equalizer-box">
+            <div className="hero-bar" style={{ "--target-h": "65%" }}>
+              <span className="bar-label">Option A</span>
+            </div>
+            <div className="hero-bar bar-emerald" style={{ "--target-h": "92%" }}>
+              <span className="bar-label">Option B</span>
+            </div>
+            <div className="hero-bar bar-cyan" style={{ "--target-h": "45%" }}>
+              <span className="bar-label">Option C</span>
+            </div>
+            <div className="hero-bar bar-amber" style={{ "--target-h": "80%" }}>
+              <span className="bar-label">Option D</span>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="features">
-        <div className="feature">
-          <h3>Real-time results</h3>
-          <p>Every vote updates every viewer's screen instantly — no refresh, ever.</p>
+      <section className="features-grid">
+        <div className="feature-card glass-card">
+          <div className="feature-icon"></div>
+          <h3>Zero-Refresh Realtime</h3>
+          <p>Votes flow over high-speed WebSockets backed by Redis Pub/Sub. Screen updates in milliseconds for everyone.</p>
         </div>
-        <div className="feature">
-          <h3>Anonymous voting</h3>
-          <p>Your audience votes with one click. No account, no signup, no friction.</p>
+        <div className="feature-card glass-card">
+          <div className="feature-icon"></div>
+          <h3>Frictionless Voting</h3>
+          <p>Audience members vote instantly with one tap. Unique DB indexes guard against duplicate votes without requiring logins.</p>
         </div>
-        <div className="feature">
-          <h3>Shareable links</h3>
-          <p>One link, any number of viewers, all watching the same live results.</p>
+        <div className="feature-card glass-card">
+          <div className="feature-icon"></div>
+          <h3>Backend Validated & Secure</h3>
+          <p>Strict server-side validation, HttpOnly session cookies, bcrypt auth, and full ownership verification.</p>
         </div>
       </section>
     </div>

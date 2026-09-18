@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { pollApi, voteApi, ApiError } from "../services/api";
+import { pollApi, voteApi, ApiError, API_URL } from "../services/api";
 import { usePollSocket } from "../hooks/usePollSocket";
 import { getVoterId } from "../utils/voterId";
 import { pollShareUrl } from "../utils/formatters";
@@ -11,6 +11,7 @@ import LiveIndicator from "../components/LiveIndicator";
 import Button from "../components/Button";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
+import Confetti from "../components/Confetti";
 
 function votedKey(pollId) {
   return `livepoll_voted:${pollId}`;
@@ -28,10 +29,14 @@ export default function Poll() {
   const [voteError, setVoteError] = useState("");
   const [hasVoted, setHasVoted] = useState(() => !!localStorage.getItem(votedKey(id)));
   const [justVoted, setJustVoted] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
-  const { results, totalVotes, status } = usePollSocket(id);
+  const { results, totalVotes, activeWatchers, status } = usePollSocket(id);
 
   useEffect(() => {
+    setHasVoted(!!localStorage.getItem(votedKey(id)));
+    setJustVoted(false);
+    setSelectedOptionId(null);
     pollApi
       .get(id)
       .then(setPoll)
@@ -39,7 +44,7 @@ export default function Poll() {
   }, [id]);
 
   async function handleVote() {
-    if (!selectedOptionId) return;
+    if (!selectedOptionId || voting) return;
     setVoting(true);
     setVoteError("");
     try {
@@ -47,10 +52,12 @@ export default function Poll() {
       localStorage.setItem(votedKey(id), "1");
       setHasVoted(true);
       setJustVoted(true);
+      showToast("Vote recorded live!", "success");
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_VOTED") {
         localStorage.setItem(votedKey(id), "1");
         setHasVoted(true);
+        showToast("You have already voted in this poll", "error");
       } else {
         setVoteError(err.message);
       }
@@ -61,7 +68,32 @@ export default function Poll() {
 
   function handleShare() {
     navigator.clipboard?.writeText(pollShareUrl(id));
-    showToast("Link copied to clipboard", "success");
+    showToast("Share link copied to clipboard!", "success");
+  }
+
+  function handleDownloadQR() {
+    const svgEl = document.getElementById("poll-qr-svg");
+    if (!svgEl) return;
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width + 40;
+      canvas.height = img.height + 40;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 20, 20);
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = `poll-${id}-qr.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      showToast("QR Code downloaded!", "success");
+    };
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   }
 
   if (loadError) {
@@ -72,7 +104,7 @@ export default function Poll() {
     );
   }
 
-  if (!poll) return <Loading label="Loading poll…" />;
+  if (!poll) return <Loading label="Loading poll details…" />;
 
   const isClosed = poll.status === "closed";
   const isExpired = poll.expiresAt && new Date(poll.expiresAt) < new Date();
@@ -80,59 +112,104 @@ export default function Poll() {
 
   return (
     <div className="poll-page">
+      {justVoted && <Confetti duration={3000} />}
+
       {location.state?.justCreated && (
-        <div className="share-banner">
-          <p>Poll created! Share it:</p>
-          <div className="share-row">
-            <code>{pollShareUrl(id)}</code>
-            <Button variant="secondary" className="btn-sm" onClick={handleShare}>
-              Copy Link
-            </Button>
-          </div>
-          <div className="share-qr">
-            <QRCodeSVG value={pollShareUrl(id)} size={96} />
+        <div className="share-banner glass-card">
+          <div className="share-banner-content">
+            <p className="share-title">Poll created successfully!</p>
+            <p className="share-sub">Share this link or QR code with your audience to gather live votes:</p>
+            <div className="share-row">
+              <code className="share-link-code">{pollShareUrl(id)}</code>
+              <Button variant="secondary" className="btn-sm" onClick={handleShare}>
+               Copy Link
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="poll-header">
-        <LiveIndicator status={status} />
+      <div className="poll-top-bar">
+        <LiveIndicator status={status} activeWatchers={activeWatchers} />
+        <div className="poll-action-buttons">
+          <Button variant="ghost" className="btn-sm" onClick={() => setShowShareModal(true)}>
+            Share Poll
+          </Button>
+          <a
+            href={`${API_URL}/api/polls/${id}/export`}
+            download
+            className="btn btn-ghost btn-sm"
+            title="Download CSV report"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
-      <h1 className="poll-question">{poll.question}</h1>
+      <div className="poll-card-container glass-card">
+        <h1 className="poll-question">{poll.question}</h1>
 
-      {isClosed && <p className="poll-status-note">This poll is closed. Final Results</p>}
-      {!isClosed && isExpired && <p className="poll-status-note">This poll has ended. Final Results</p>}
+        {isClosed && <p className="poll-status-note is-closed"> This poll is closed. Final live results below.</p>}
+        {!isClosed && isExpired && <p className="poll-status-note is-expired"> This poll has expired. Final results below.</p>}
 
-      {!votingLocked && (
-        <>
-          <p className="poll-instruction">Select an option</p>
-          <Results
-            options={poll.options}
-            results={results}
-            totalVotes={totalVotes}
-            selectable
-            selectedOptionId={selectedOptionId}
-            onSelect={setSelectedOptionId}
-          />
-          <ErrorMessage>{voteError}</ErrorMessage>
-          <Button onClick={handleVote} disabled={!selectedOptionId} loading={voting} className="btn-block">
-            Vote
-          </Button>
-        </>
-      )}
+        {hasVoted && !isClosed && !isExpired && (
+          <p className="poll-status-note poll-status-success">
+            {justVoted
+              ? "✓ Your vote was submitted — watching results update live below."
+              : "✓ You have voted in this poll. Real-time updates active below."}
+          </p>
+        )}
 
-      {votingLocked && (
-        <>
-          {hasVoted && !isClosed && !isExpired && (
-            <p className="poll-status-note poll-status-success">
-              {justVoted
-                ? "✓ Vote recorded — results are updating live."
-                : "You've already voted in this poll."}
-            </p>
-          )}
+        {!votingLocked ? (
+          <div className="voting-section">
+            <p className="poll-instruction">Select your answer:</p>
+            <Results
+              options={poll.options}
+              results={results}
+              totalVotes={totalVotes}
+              selectable
+              selectedOptionId={selectedOptionId}
+              onSelect={setSelectedOptionId}
+            />
+            <ErrorMessage>{voteError}</ErrorMessage>
+            <Button
+              onClick={handleVote}
+              disabled={!selectedOptionId || voting}
+              loading={voting}
+              className="btn-block btn-lg btn-primary vote-btn-pulse"
+            >
+              Submit Vote
+            </Button>
+          </div>
+        ) : (
           <Results options={poll.options} results={results} totalVotes={totalVotes} />
-        </>
+        )}
+      </div>
+
+      {showShareModal && (
+        <div className="modal-backdrop" onClick={() => setShowShareModal(false)}>
+          <div className="modal glass-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Share this Poll</h3>
+            <p>Anyone with this link can participate and view results live in real time.</p>
+            <div className="share-row margin-v">
+              <code className="share-link-code">{pollShareUrl(id)}</code>
+              <Button variant="secondary" className="btn-sm" onClick={handleShare}>
+                Copy
+              </Button>
+            </div>
+            <div className="qr-center">
+              <QRCodeSVG id="poll-qr-svg" value={pollShareUrl(id)} size={160} className="qr-code-img" />
+            </div>
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={handleDownloadQR}>
+                 Download QR PNG
+              </Button>
+              <Button variant="secondary" onClick={() => setShowShareModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

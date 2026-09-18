@@ -87,9 +87,9 @@ export default function CreatePoll() {
             </div>
           ))}
           {options.length < 10 && (
-            <button type="button" className="add-option" onClick={addOption}>
+            <Button type="button" className="add-option" onClick={addOption}>
               + Add option
-            </button>
+            </Button>
           )}
         </div>
 

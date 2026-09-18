@@ -130,6 +130,28 @@ func (h *Hub) GetActiveWatchers(pollID string) int {
 	return len(room.clients)
 }
 
+// BroadcastWatchers sends an updated count of active connected clients to all room members.
+func (h *Hub) BroadcastWatchers(pollID string) {
+	h.mu.Lock()
+	room, ok := h.rooms[pollID]
+	if !ok {
+		h.mu.Unlock()
+		return
+	}
+	count := len(room.clients)
+	h.mu.Unlock()
+
+	payload, err := json.Marshal(map[string]interface{}{
+		"type":           "poll.watchers.updated",
+		"activeWatchers": count,
+	})
+	if err != nil {
+		return
+	}
+
+	h.broadcast(room, payload)
+}
+
 // SnapshotMessage builds a one-off "current state" message in the same
 // envelope as a live update, used to seed a client the instant it
 // connects (and after it reconnects) so it never shows stale zeros
@@ -150,4 +172,5 @@ func SnapshotMessage(results map[string]int64, activeWatchers ...int) ([]byte, e
 		"activeWatchers": watchers,
 	})
 }
+
 

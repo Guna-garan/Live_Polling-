@@ -19,6 +19,7 @@ const MAX_BACKOFF_MS = 15_000;
 export function usePollSocket(pollId) {
   const [results, setResults] = useState({});
   const [totalVotes, setTotalVotes] = useState(0);
+  const [activeWatchers, setActiveWatchers] = useState(1);
   const [status, setStatus] = useState("connecting");
 
   const backoffRef = useRef(1000);
@@ -30,9 +31,19 @@ export function usePollSocket(pollId) {
     closedByUsRef.current = false;
 
     function applyEvent(evt) {
-      if (evt.type === "poll.results.snapshot" || evt.type === "poll.results.updated") {
+      if (evt.type === "poll.results.snapshot") {
         setResults(evt.results || {});
         setTotalVotes(evt.totalVotes || 0);
+        if (typeof evt.activeWatchers === "number") {
+          setActiveWatchers(evt.activeWatchers);
+        }
+      } else if (evt.type === "poll.results.updated") {
+        setResults(evt.results || {});
+        setTotalVotes(evt.totalVotes || 0);
+      } else if (evt.type === "poll.watchers.updated") {
+        if (typeof evt.activeWatchers === "number") {
+          setActiveWatchers(evt.activeWatchers);
+        }
       }
     }
 
@@ -42,8 +53,7 @@ export function usePollSocket(pollId) {
         setResults(poll.results || {});
         setTotalVotes(poll.totalVotes || 0);
       } catch {
-        // best-effort; the socket's own snapshot message will likely
-        // arrive right after anyway
+        // best-effort
       }
     }
 
@@ -88,5 +98,5 @@ export function usePollSocket(pollId) {
     };
   }, [pollId]);
 
-  return { results, totalVotes, status };
+  return { results, totalVotes, activeWatchers, status };
 }

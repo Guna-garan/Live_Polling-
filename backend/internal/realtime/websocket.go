@@ -52,7 +52,11 @@ func (h *Handler) Serve(c *gin.Context) {
 	}
 
 	cl := h.hub.Join(pollID)
-	defer h.hub.Leave(cl)
+	h.hub.BroadcastWatchers(pollID)
+	defer func() {
+		h.hub.Leave(cl)
+		h.hub.BroadcastWatchers(pollID)
+	}()
 
 	watchers := h.hub.GetActiveWatchers(pollID)
 
