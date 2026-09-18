@@ -1,0 +1,18 @@
+# Backend (Go)
+backend/livepoll
+backend/*.exe
+backend/.env
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Misc
+*.log

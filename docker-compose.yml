@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Optional: run the backend itself via compose too. Comment this out
+  # if you'd rather run `go run ./cmd/server` locally for faster iteration.
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      APP_ENV: development
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DATABASE: livepoll
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      FRONTEND_URL: http://localhost:5173
+
+volumes:
+  mongo_data:
+  redis_data:
