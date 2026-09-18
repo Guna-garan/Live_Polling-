@@ -118,18 +118,36 @@ func (h *Hub) broadcast(room *pollRoom, payload []byte) {
 	}
 }
 
+// GetActiveWatchers returns the current number of connected WebSocket clients for a poll.
+func (h *Hub) GetActiveWatchers(pollID string) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	room, ok := h.rooms[pollID]
+	if !ok {
+		return 0
+	}
+	return len(room.clients)
+}
+
 // SnapshotMessage builds a one-off "current state" message in the same
 // envelope as a live update, used to seed a client the instant it
 // connects (and after it reconnects) so it never shows stale zeros
 // while waiting for the next vote.
-func SnapshotMessage(results map[string]int64) ([]byte, error) {
+func SnapshotMessage(results map[string]int64, activeWatchers ...int) ([]byte, error) {
 	var total int64
 	for _, v := range results {
 		total += v
 	}
+	watchers := 1
+	if len(activeWatchers) > 0 {
+		watchers = activeWatchers[0]
+	}
 	return json.Marshal(map[string]interface{}{
-		"type":       "poll.results.snapshot",
-		"results":    results,
-		"totalVotes": total,
+		"type":           "poll.results.snapshot",
+		"results":        results,
+		"totalVotes":     total,
+		"activeWatchers": watchers,
 	})
 }
+

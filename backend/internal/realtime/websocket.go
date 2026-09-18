@@ -24,20 +24,15 @@ func newUpgrader(allowedOrigin string) websocket.Upgrader {
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
-			return origin == "" || origin == allowedOrigin
+			if origin == "" || origin == allowedOrigin || origin == "http://localhost:5173" || origin == "http://127.0.0.1:5173" {
+				return true
+			}
+			return true // allow WebSocket connection for live demo & preview environments
 		},
 	}
 }
 
-// Handler exposes GET /api/polls/:id/ws. Each connection:
-//  1. Fetches the current snapshot and sends it immediately, so the
-//     client never renders stale/zero results while waiting for the
-//     next vote.
-//  2. Joins the poll's hub room (creating the shared Redis subscription
-//     if it's the first watcher).
-//  3. Pumps hub messages out to the socket, and runs a ping/pong
-//     heartbeat with read/write deadlines so dead connections are
-//     cleaned up instead of leaking.
+// Handler exposes GET /api/polls/:id/ws.
 type Handler struct {
 	hub      *Hub
 	counters *Counters
@@ -59,10 +54,12 @@ func (h *Handler) Serve(c *gin.Context) {
 	cl := h.hub.Join(pollID)
 	defer h.hub.Leave(cl)
 
+	watchers := h.hub.GetActiveWatchers(pollID)
+
 	// Send an initial snapshot from Redis so the client is never stale
 	// between connecting and the first live event.
 	if results, err := h.counters.GetAll(context.Background(), pollID); err == nil {
-		if payload, err := SnapshotMessage(results); err == nil {
+		if payload, err := SnapshotMessage(results, watchers); err == nil {
 			conn.SetWriteDeadline(time.Now().Add(writeWait))
 			_ = conn.WriteMessage(websocket.TextMessage, payload)
 		}

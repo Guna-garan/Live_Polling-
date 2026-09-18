@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -20,11 +22,10 @@ type Config struct {
 	FrontendURL string // used for CORS + building shareable poll links
 }
 
-// Load reads configuration from the environment. It does not itself decide
-// whether a missing JWT_SECRET is fatal — main.go enforces that, since the
-// policy (required only in production, dev fallback otherwise) is a startup
-// concern, not a parsing concern.
+// Load reads configuration from the environment.
 func Load() *Config {
+	_ = godotenv.Load()
+
 	cfg := &Config{
 		Port:        getenv("PORT", "8080"),
 		Env:         getenv("APP_ENV", "development"),

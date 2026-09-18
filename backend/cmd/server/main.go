@@ -96,6 +96,7 @@ func main() {
 		polls.POST("", requireAuth, pollHandler.Create)
 		polls.GET("", requireAuth, pollHandler.List)
 		polls.GET("/:id", pollHandler.Get) // public
+		polls.GET("/:id/export", pollHandler.Export) // public
 		polls.PATCH("/:id", requireAuth, pollHandler.Update)
 		polls.DELETE("/:id", requireAuth, pollHandler.Delete)
 

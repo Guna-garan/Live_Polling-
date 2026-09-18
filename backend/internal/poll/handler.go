@@ -2,6 +2,7 @@ package poll
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -125,3 +126,36 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// Export handles GET /api/polls/:id/export — downloads CSV results of the poll.
+func (h *Handler) Export(c *gin.Context) {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		apiError(c, http.StatusBadRequest, "INVALID_REQUEST", "Invalid poll id")
+		return
+	}
+
+	p, err := h.svc.Get(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrPollNotFound) {
+			apiError(c, http.StatusNotFound, "POLL_NOT_FOUND", "Poll not found")
+			return
+		}
+		apiError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Could not load poll")
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename=poll-results.csv")
+	c.Header("Content-Type", "text/csv")
+
+	c.Writer.WriteString("Option Text,Vote Count,Percentage\n")
+	for _, opt := range p.Options {
+		cnt := p.Results[opt.ID]
+		var pct float64
+		if p.TotalVotes > 0 {
+			pct = (float64(cnt) / float64(p.TotalVotes)) * 100.0
+		}
+		c.Writer.WriteString(fmt.Sprintf("%q,%d,%.1f%%\n", opt.Text, cnt, pct))
+	}
+}
+
