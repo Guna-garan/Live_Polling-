@@ -12,7 +12,7 @@ export function formatDate(dateString) {
 }
 
 export function pollShareUrl(pollId) {
-  return `${window.location.origin}/poll/${pollId}`;
+  return `${window.location.origin}/#/poll/${pollId}`;
 }
 
 const EXPIRY_OPTIONS = [
