@@ -31,7 +31,7 @@ export default function Poll() {
   const [justVoted, setJustVoted] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  const { results, totalVotes, activeWatchers, status } = usePollSocket(id);
+  const { results, totalVotes, activeWatchers, status, updateResults } = usePollSocket(id);
 
   useEffect(() => {
     setHasVoted(!!localStorage.getItem(votedKey(id)));
@@ -48,10 +48,13 @@ export default function Poll() {
     setVoting(true);
     setVoteError("");
     try {
-      await voteApi.cast(id, selectedOptionId, getVoterId());
+      const res = await voteApi.cast(id, selectedOptionId, getVoterId());
       localStorage.setItem(votedKey(id), "1");
       setHasVoted(true);
       setJustVoted(true);
+      if (res && res.results) {
+        updateResults(res.results, res.totalVotes || 0);
+      }
       showToast("Vote recorded live!", "success");
     } catch (err) {
       if (err instanceof ApiError && err.code === "ALREADY_VOTED") {
@@ -71,8 +74,8 @@ export default function Poll() {
     showToast("Share link copied to clipboard!", "success");
   }
 
-  function handleDownloadQR() {
-    const svgEl = document.getElementById("poll-qr-svg");
+  function handleDownloadQR(svgId = "poll-qr-svg") {
+    const svgEl = document.getElementById(svgId) || document.getElementById("poll-qr-svg");
     if (!svgEl) return;
     const svgData = new XMLSerializer().serializeToString(svgEl);
     const canvas = document.createElement("canvas");
@@ -117,17 +120,28 @@ export default function Poll() {
       {location.state?.justCreated && (
         <div className="share-banner glass-card">
           <div className="share-banner-content">
-            <p className="share-title">Poll created successfully!</p>
+            <p className="share-title">🎉 Poll created successfully!</p>
             <p className="share-sub">Share this link or QR code with your audience to gather live votes:</p>
-            <div className="share-row">
+            <div className="share-row margin-v">
               <code className="share-link-code">{pollShareUrl(id)}</code>
               <Button variant="secondary" className="btn-sm" onClick={handleShare}>
-               Copy Link
+                Copy Link
               </Button>
+            </div>
+            <div className="share-qr-section">
+              <div className="qr-center">
+                <QRCodeSVG id="poll-qr-banner-svg" value={pollShareUrl(id)} size={160} className="qr-code-img" />
+              </div>
+              <div className="qr-banner-actions">
+                <Button variant="secondary" className="btn-sm" onClick={() => handleDownloadQR("poll-qr-banner-svg")}>
+                  Download QR PNG
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
 
       <div className="poll-top-bar">
         <LiveIndicator status={status} activeWatchers={activeWatchers} />

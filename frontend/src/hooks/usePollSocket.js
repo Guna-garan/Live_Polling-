@@ -98,5 +98,10 @@ export function usePollSocket(pollId) {
     };
   }, [pollId]);
 
-  return { results, totalVotes, activeWatchers, status };
+  const updateResults = (newResults, newTotalVotes) => {
+    if (newResults) setResults(newResults);
+    if (typeof newTotalVotes === "number") setTotalVotes(newTotalVotes);
+  };
+
+  return { results, totalVotes, activeWatchers, status, setResults, setTotalVotes, updateResults };
 }

@@ -79,4 +79,12 @@ export const voteApi = {
     }),
 };
 
-export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+function getWsUrl() {
+  const envWsUrl = import.meta.env.VITE_WS_URL;
+  if (envWsUrl) {
+    return envWsUrl.replace(/^http/, "ws");
+  }
+  return API_URL.replace(/^http/, "ws");
+}
+
+export const WS_URL = getWsUrl();

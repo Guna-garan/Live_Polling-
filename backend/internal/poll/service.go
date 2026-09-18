@@ -12,13 +12,20 @@ import (
 
 var ErrForbidden = errors.New("you do not own this poll")
 
+type VoteCounterFn func(context.Context, primitive.ObjectID) (map[string]int64, error)
+
 type Service struct {
-	repo     *Repository
-	counters *realtime.Counters
+	repo        *Repository
+	counters    *realtime.Counters
+	voteCounter VoteCounterFn
 }
 
 func NewService(repo *Repository, counters *realtime.Counters) *Service {
 	return &Service{repo: repo, counters: counters}
+}
+
+func (s *Service) SetVoteCounter(fn VoteCounterFn) {
+	s.voteCounter = fn
 }
 
 func (s *Service) Create(ctx context.Context, creatorID primitive.ObjectID, req CreatePollRequest) (*Poll, error) {
@@ -85,20 +92,23 @@ func (s *Service) Get(ctx context.Context, id primitive.ObjectID) (*PollWithResu
 }
 
 // resultsFor returns live counts for a poll, rebuilding Redis from
-// MongoDB votes if the hash is missing/empty (Redis restart recovery,
-// section 36 of the spec). The vote package owns vote persistence, so
-// this takes a pre-aggregated count map from the caller when rebuilding
-// is needed via RebuildFromVotes.
+// MongoDB votes if the hash is missing/empty (Redis restart recovery).
 func (s *Service) resultsFor(ctx context.Context, p *Poll) (map[string]int64, error) {
 	results, err := s.counters.GetAll(ctx, p.ID.Hex())
 	if err != nil {
 		return nil, err
 	}
 	if len(results) == 0 && len(p.Options) > 0 {
-		// Nothing in Redis for a poll that should have counters — treat
-		// as zeroed rather than blocking the read; a full rebuild from
-		// Mongo is also triggered by the startup recovery job and by
-		// RebuildFromVotes below when called explicitly.
+		if s.voteCounter != nil {
+			if counts, err := s.voteCounter(ctx, p.ID); err == nil && len(counts) > 0 {
+				optionIDs := make([]string, len(p.Options))
+				for i, o := range p.Options {
+					optionIDs[i] = o.ID
+				}
+				_ = s.counters.Rebuild(ctx, p.ID.Hex(), counts, optionIDs)
+				return counts, nil
+			}
+		}
 		results = make(map[string]int64, len(p.Options))
 		for _, o := range p.Options {
 			results[o.ID] = 0

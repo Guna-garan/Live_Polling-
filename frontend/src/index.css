@@ -902,6 +902,19 @@ a:hover {
   padding: 10px;
   border-radius: 12px;
 }
+.share-qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-glass);
+}
+.qr-banner-actions {
+  display: flex;
+  justify-content: center;
+}
 
 /* Modal Backdrop */
 .modal-backdrop {

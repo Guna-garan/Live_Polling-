@@ -53,6 +53,8 @@ func main() {
 	voteSvc := vote.NewService(voteRepo, pollRepo, counters)
 	voteHandler := vote.NewHandler(voteSvc)
 
+	pollSvc.SetVoteCounter(voteSvc.CountByOptionAdapter)
+
 	wsHandler := realtime.NewHandler(hub, counters, cfg.FrontendURL)
 
 	// --- Redis recovery: rebuild active polls' counters from MongoDB ------

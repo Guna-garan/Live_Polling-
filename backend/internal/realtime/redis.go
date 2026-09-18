@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -62,9 +64,9 @@ func (c *Counters) GetAll(ctx context.Context, pollID string) (map[string]int64,
 	}
 	out := make(map[string]int64, len(raw))
 	for k, v := range raw {
-		var n int64
-		fmt.Sscanf(v, "%d", &n)
-		out[k] = n
+		if n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64); err == nil {
+			out[k] = n
+		}
 	}
 	return out, nil
 }
