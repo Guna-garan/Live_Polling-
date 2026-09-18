@@ -13,10 +13,16 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
+  const token = localStorage.getItem("livepoll_auth_token");
+  const headers = { "Content-Type": "application/json", ...options.headers };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
-    credentials: "include", // send the HttpOnly auth cookie
-    headers: { "Content-Type": "application/json" },
+    credentials: "include", // send HttpOnly cookie if allowed
     ...options,
+    headers,
   });
 
   if (res.status === 204) return null;

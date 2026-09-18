@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -19,7 +20,7 @@ func CORS(frontendURL string) gin.HandlerFunc {
 			if err != nil {
 				return false
 			}
-			return u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1"
+			return u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || strings.HasSuffix(u.Hostname(), ".onrender.com")
 		},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},

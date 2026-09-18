@@ -2,17 +2,28 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// RequireAuth reads the JWT from the HttpOnly cookie, validates it, and
-// sets "userID" in the Gin context for downstream handlers. It never
-// trusts any user/creator ID supplied by the client in the request body.
+func extractToken(c *gin.Context, cookieName string) string {
+	token, err := c.Cookie(cookieName)
+	if err == nil && token != "" {
+		return token
+	}
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+	return ""
+}
+
+// RequireAuth reads the JWT from HttpOnly cookie or Authorization Bearer header.
 func RequireAuth(parse func(token string) (interface{}, error), cookieName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token, err := c.Cookie(cookieName)
-		if err != nil || token == "" {
+		token := extractToken(c, cookieName)
+		if token == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": gin.H{"code": "UNAUTHORIZED", "message": "Authentication required"},
 			})
@@ -32,14 +43,11 @@ func RequireAuth(parse func(token string) (interface{}, error), cookieName strin
 	}
 }
 
-// OptionalAuth behaves like RequireAuth but never aborts the request; if
-// a valid cookie is present it sets "userID", otherwise the request
-// proceeds unauthenticated. Used on public endpoints (like GET poll)
-// that behave slightly differently for the poll's own creator.
+// OptionalAuth behaves like RequireAuth but never aborts the request.
 func OptionalAuth(parse func(token string) (interface{}, error), cookieName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token, err := c.Cookie(cookieName)
-		if err == nil && token != "" {
+		token := extractToken(c, cookieName)
+		if token != "" {
 			if userID, err := parse(token); err == nil {
 				c.Set("userID", userID)
 			}

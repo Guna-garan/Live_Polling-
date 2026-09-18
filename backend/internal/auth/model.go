@@ -31,4 +31,5 @@ type LoginRequest struct {
 type MeResponse struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
+	Token string `json:"token,omitempty"`
 }

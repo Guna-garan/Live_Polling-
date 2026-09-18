@@ -29,7 +29,11 @@ func NewHandler(svc *Service, opts CookieOptions) *Handler {
 }
 
 func (h *Handler) setCookie(c *gin.Context, token string, maxAgeSeconds int) {
-	c.SetSameSite(http.SameSiteLaxMode)
+	if h.cookieOpts.Secure {
+		c.SetSameSite(http.SameSiteNoneMode)
+	} else {
+		c.SetSameSite(http.SameSiteLaxMode)
+	}
 	c.SetCookie(CookieName, token, maxAgeSeconds, "/", h.cookieOpts.Domain, h.cookieOpts.Secure, true)
 }
 
@@ -60,7 +64,7 @@ func (h *Handler) Signup(c *gin.Context) {
 	}
 
 	h.setCookie(c, token, int((7 * 24 * time.Hour).Seconds()))
-	c.JSON(http.StatusCreated, MeResponse{ID: user.ID.Hex(), Email: user.Email})
+	c.JSON(http.StatusCreated, MeResponse{ID: user.ID.Hex(), Email: user.Email, Token: token})
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -77,7 +81,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	h.setCookie(c, token, int((7 * 24 * time.Hour).Seconds()))
-	c.JSON(http.StatusOK, MeResponse{ID: user.ID.Hex(), Email: user.Email})
+	c.JSON(http.StatusOK, MeResponse{ID: user.ID.Hex(), Email: user.Email, Token: token})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
