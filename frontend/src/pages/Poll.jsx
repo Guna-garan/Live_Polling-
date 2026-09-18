@@ -34,9 +34,23 @@ export default function Poll() {
   const { results, totalVotes, activeWatchers, status, updateResults } = usePollSocket(id);
 
   useEffect(() => {
+    const voterId = getVoterId();
     setHasVoted(!!localStorage.getItem(votedKey(id)));
     setJustVoted(false);
     setSelectedOptionId(null);
+
+    if (voterId) {
+      voteApi
+        .status(id, voterId)
+        .then((res) => {
+          if (res && res.hasVoted) {
+            localStorage.setItem(votedKey(id), "1");
+            setHasVoted(true);
+          }
+        })
+        .catch(() => {});
+    }
+
     pollApi
       .get(id)
       .then((data) => {

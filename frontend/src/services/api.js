@@ -77,6 +77,8 @@ export const voteApi = {
       method: "POST",
       body: JSON.stringify({ optionId, voterId }),
     }),
+  status: (pollId, voterId) =>
+    request(`/api/polls/${pollId}/vote-status?voterId=${encodeURIComponent(voterId)}`),
 };
 
 function getWsUrl() {
