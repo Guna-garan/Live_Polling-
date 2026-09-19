@@ -102,6 +102,29 @@ func (s *Service) HasVoted(ctx context.Context, pollID primitive.ObjectID, voter
 	return s.repo.HasVoted(ctx, pollID, voterID)
 }
 
+func (s *Service) GetResults(ctx context.Context, pollID primitive.ObjectID) (map[string]int64, int64, error) {
+	p, err := s.polls.FindByID(ctx, pollID)
+	if err != nil {
+		return nil, 0, err
+	}
+	results, err := s.counters.GetAll(ctx, pollID.Hex())
+	if err != nil || len(results) == 0 {
+		if counts, mongoErr := s.repo.CountByOption(ctx, pollID); mongoErr == nil {
+			results = counts
+		}
+	}
+	for _, opt := range p.Options {
+		if _, ok := results[opt.ID]; !ok {
+			results[opt.ID] = 0
+		}
+	}
+	var total int64
+	for _, v := range results {
+		total += v
+	}
+	return results, total, nil
+}
+
 // CountByOptionAdapter exposes vote counting from MongoDB in the exact
 // function shape poll.Service.RebuildActiveCounters expects, without
 // poll needing to import vote directly (which would create an import

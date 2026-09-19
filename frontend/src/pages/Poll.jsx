@@ -79,6 +79,16 @@ export default function Poll() {
       if (err instanceof ApiError && err.code === "ALREADY_VOTED") {
         localStorage.setItem(votedKey(id), "1");
         setHasVoted(true);
+        if (err.results) {
+          updateResults(err.results, err.totalVotes || 0);
+        } else {
+          pollApi
+            .get(id)
+            .then((data) => {
+              if (data && data.results) updateResults(data.results, data.totalVotes || 0);
+            })
+            .catch(() => {});
+        }
         showToast("You have already voted in this poll", "error");
       } else {
         setVoteError(err.message);

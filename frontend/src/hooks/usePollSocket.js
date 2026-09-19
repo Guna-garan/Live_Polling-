@@ -23,11 +23,10 @@ export function usePollSocket(pollId) {
 
   const backoffRef = useRef(1000);
   const sockRef = useRef(null);
-  const closedByUsRef = useRef(false);
 
   useEffect(() => {
     if (!pollId) return;
-    closedByUsRef.current = false;
+    let cancelled = false;
 
     async function resync() {
       try {
@@ -65,12 +64,14 @@ export function usePollSocket(pollId) {
       sockRef.current = sock;
 
       sock.onopen = () => {
+        if (cancelled || sock !== sockRef.current) return;
         backoffRef.current = 1000;
         setStatus("live");
         resync();
       };
 
       sock.onmessage = (evt) => {
+        if (sock !== sockRef.current) return;
         try {
           applyEvent(JSON.parse(evt.data));
         } catch {
@@ -79,11 +80,24 @@ export function usePollSocket(pollId) {
       };
 
       sock.onclose = () => {
-        if (closedByUsRef.current) return;
+        // Ignore close events from a socket that's no longer the active
+        // one for this hook instance (superseded by a newer connect()
+        // call, e.g. during React's dev-mode double-effect cycle, or a
+        // fast pollId change). Comparing identity here — instead of a
+        // shared "did we close this on purpose" boolean — is what makes
+        // this correct even when this effect's cleanup and a fresh
+        // connect() interleave: a boolean flag gets reset by the new
+        // connection before the old socket's async close event arrives,
+        // which previously caused a spurious extra reconnect (and an
+        // inflated "watching" count server-side, since the hub still
+        // thought that phantom client was connected).
+        if (cancelled || sock !== sockRef.current) return;
         setStatus("reconnecting");
         const delay = backoffRef.current;
         backoffRef.current = Math.min(delay * 2, MAX_BACKOFF_MS);
-        setTimeout(connect, delay);
+        setTimeout(() => {
+          if (!cancelled) connect();
+        }, delay);
       };
 
       sock.onerror = () => {
@@ -94,8 +108,9 @@ export function usePollSocket(pollId) {
     connect();
 
     return () => {
-      closedByUsRef.current = true;
+      cancelled = true;
       sockRef.current?.close();
+      sockRef.current = null;
     };
   }, [pollId]);
 

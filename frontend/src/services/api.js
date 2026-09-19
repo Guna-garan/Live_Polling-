@@ -37,7 +37,10 @@ async function request(path, options = {}) {
   if (!res.ok) {
     const code = body?.error?.code || "INTERNAL_ERROR";
     const message = body?.error?.message || "Something went wrong";
-    throw new ApiError(res.status, code, message);
+    const err = new ApiError(res.status, code, message);
+    err.results = body?.results;
+    err.totalVotes = body?.totalVotes;
+    throw err;
   }
 
   return body;

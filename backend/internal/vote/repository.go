@@ -2,6 +2,7 @@ package vote
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -35,6 +36,7 @@ func (r *Repository) Insert(ctx context.Context, v *Vote) error {
 	v.CreatedAt = time.Now().UTC()
 	res, err := r.col.InsertOne(ctx, v)
 	if err != nil {
+		log.Printf("mongo insert vote error: %v", err)
 		if mongo.IsDuplicateKeyError(err) {
 			return ErrDuplicateVote
 		}

@@ -53,7 +53,15 @@ func (h *Handler) Cast(c *gin.Context) {
 		case errors.Is(err, ErrInvalidVoterID):
 			apiError(c, http.StatusBadRequest, "INVALID_REQUEST", "voterId is required")
 		case errors.Is(err, ErrDuplicateVote):
-			apiError(c, http.StatusConflict, "ALREADY_VOTED", "You've already voted in this poll")
+			results, total, _ := h.svc.GetResults(c.Request.Context(), pollID)
+			c.JSON(http.StatusConflict, gin.H{
+				"error": gin.H{
+					"code":    "ALREADY_VOTED",
+					"message": "You've already voted in this poll",
+				},
+				"results":    results,
+				"totalVotes": total,
+			})
 		default:
 			apiError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Could not record vote")
 		}
