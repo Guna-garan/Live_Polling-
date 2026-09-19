@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { WS_URL } from "../services/api";
-import { pollApi } from "../services/api";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { WS_URL, pollApi } from "../services/api";
 
 const MAX_BACKOFF_MS = 15_000;
 
@@ -59,16 +58,6 @@ export function usePollSocket(pollId) {
       }
     }
 
-    async function resync() {
-      try {
-        const poll = await pollApi.get(pollId);
-        setResults(poll.results || {});
-        setTotalVotes(poll.totalVotes || 0);
-      } catch {
-        // best-effort
-      }
-    }
-
     function connect() {
       setStatus((s) => (s === "connecting" ? "connecting" : "reconnecting"));
       const wsUrl = `${WS_URL}/api/polls/${pollId}/ws`;
@@ -110,10 +99,11 @@ export function usePollSocket(pollId) {
     };
   }, [pollId]);
 
-  const updateResults = (newResults, newTotalVotes) => {
+  const updateResults = useCallback((newResults, newTotalVotes) => {
     if (newResults) setResults(newResults);
     if (typeof newTotalVotes === "number") setTotalVotes(newTotalVotes);
-  };
+  }, []);
 
   return { results, totalVotes, activeWatchers, status, setResults, setTotalVotes, updateResults };
 }
+
